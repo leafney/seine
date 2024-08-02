@@ -20,6 +20,11 @@ type Response struct {
 	Error string      `json:"error"` // 给开发者看的详细错误信息
 }
 
+type PageData struct {
+	Total int64       `json:"total"`
+	List  interface{} `json:"list"`
+}
+
 func jsonResult(c *fiber.Ctx, statusCode int, errCode int, msg string, data interface{}, err string) error {
 	return c.Status(statusCode).JSON(Response{
 		Code:  errCode,
@@ -37,6 +42,15 @@ func Ok(c *fiber.Ctx) error {
 func OkWithData(c *fiber.Ctx, data interface{}) error {
 	msg := respcode.GetErrMsg(respcode.Success, "")
 	return jsonResult(c, fiber.StatusOK, respcode.Success, msg, data, "")
+}
+
+func OkWithPage(c *fiber.Ctx, total int64, list interface{}) error {
+	msg := respcode.GetErrMsg(respcode.Success, "")
+	pageData := PageData{
+		Total: total,
+		List:  list,
+	}
+	return jsonResult(c, fiber.StatusOK, respcode.Success, msg, pageData, "")
 }
 
 func OkWithMsg(c *fiber.Ctx, msg string) error {
