@@ -16,16 +16,16 @@ import (
 
 // Injectors from wire.go:
 
-func InitApp() (*App, func(), error) {
+func InitApp(stop chan struct{}) (*App, func(), error) {
 	configConfig, err := config.NewConfig()
 	if err != nil {
 		return nil, nil, err
 	}
-	dbService := gormx.NewDBService(configConfig)
+	dbService := gormx.NewDBService(configConfig, stop)
 	memoDao := dao.NewMemoDao(dbService)
 	memoBiz := biz.NewMemoBiz(memoDao)
 	memoApi := api.NewMemoApi(memoBiz)
-	app := NewApp(memoApi)
+	app := NewApp(memoApi, stop)
 	return app, func() {
 	}, nil
 }

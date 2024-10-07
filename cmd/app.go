@@ -24,9 +24,10 @@ import (
 type App struct {
 	*fiber.App
 	port string
+	quit chan struct{}
 }
 
-func NewApp(api *api.MemoApi) *App {
+func NewApp(api *api.MemoApi, quit chan struct{}) *App {
 	app := fiber.New()
 
 	// TODO router middlewares
@@ -36,10 +37,10 @@ func NewApp(api *api.MemoApi) *App {
 
 	app.Get("/memo", api.List)
 
-	return &App{App: app, port: "8090"}
+	return &App{App: app, port: "8090", quit: quit}
 }
 
-func (a *App) Start(stop chan struct{}) {
+func (a *App) Start() {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -53,7 +54,7 @@ func (a *App) Start(stop chan struct{}) {
 		<-signalChan
 
 		// 关闭通道
-		close(stop)
+		close(a.quit)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()

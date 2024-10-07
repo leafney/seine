@@ -15,7 +15,7 @@ import (
 	"github.com/google/wire"
 )
 
-func InitApp() (*App, func(), error) {
+func InitApp(stop chan struct{}) (*App, func(), error) {
 	wire.Build(AppSet)
 	return &App{}, nil, nil
 }

@@ -17,12 +17,12 @@ func main() {
 	// 用于退出的通道
 	quitChan := make(chan struct{})
 
-	app, callback, err := cmd.InitApp()
+	app, callback, err := cmd.InitApp(quitChan)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	defer callback()
 
-	app.Start(quitChan)
+	app.Start()
 }
