@@ -11,6 +11,7 @@ package config
 type Config struct {
 	DSN   string
 	Redis Redis
+	Log   Log
 }
 
 type (
@@ -18,6 +19,14 @@ type (
 		Addr string
 		Pwd  string
 		DB   int
+	}
+
+	Log struct {
+		XEnable bool
+		XDebug  bool
+		XLevel  string
+		ZEnable bool
+		ZLevel  string
 	}
 )
 
