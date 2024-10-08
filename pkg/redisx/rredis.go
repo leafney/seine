@@ -14,11 +14,11 @@ import (
 	"log"
 )
 
-type RRedisService struct {
+type RRedisSvc struct {
 	*rredis.Redis
 }
 
-func NewRRedisService(cfg *config.Config, stop chan struct{}) *RRedisService {
+func NewRRedisSvc(cfg *config.Config, stop chan struct{}) *RRedisSvc {
 	cfgRedis := cfg.Redis
 	client, err := rredis.NewRedis(cfgRedis.Addr, &rredis.Option{
 		Pass: cfgRedis.Pwd,
@@ -26,27 +26,19 @@ func NewRRedisService(cfg *config.Config, stop chan struct{}) *RRedisService {
 		Type: rredis.TypeNode,
 	})
 	if err != nil {
-		log.Fatalf("[Redis] connect error [%v]", err)
-	}
-
-	ping := client.Ping()
-	if !ping {
-		log.Fatalln("[Redis] ping error")
+		log.Fatalf("[RRedis] connect error [%v]", err)
 	}
 
 	go func() {
 		<-stop // 等待停止信号
 		if err := client.Close(); err != nil {
-			log.Fatalf("[Redis] disconnect error [%v]", err)
+			log.Fatalf("[RRedis] disconnect error [%v]", err)
 		} else {
-			log.Println("[Redis] Exit successful")
+			log.Println("[RRedis] Exit successful")
 		}
 	}()
 
-	log.Println("[Redis] Load successful")
+	log.Println("[RRedis] Load successful")
 
-	return &RRedisService{
-		client,
-	}
-
+	return &RRedisSvc{client}
 }
