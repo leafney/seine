@@ -9,8 +9,17 @@
 package config
 
 type Config struct {
-	DSN string
+	DSN   string
+	Redis Redis
 }
+
+type (
+	Redis struct {
+		Addr string
+		Pwd  string
+		DB   int
+	}
+)
 
 func NewConfig() (*Config, error) {
 
