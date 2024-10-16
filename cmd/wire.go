@@ -15,7 +15,11 @@ import (
 	"github.com/google/wire"
 )
 
-func InitApp(stop chan struct{}) (*App, func(), error) {
-	wire.Build(AppSet)
-	return &App{}, nil, nil
+func InitApp(stop chan struct{}) (*Injector, func(), error) {
+	wire.Build(
+		AppSet,
+		wire.Struct(new(DefRouter), "*"),
+		wire.NewSet(wire.Struct(new(Injector), "*")),
+	)
+	return &Injector{}, nil, nil
 }

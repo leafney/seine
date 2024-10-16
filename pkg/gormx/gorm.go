@@ -10,17 +10,17 @@ package gormx
 
 import (
 	"github.com/leafney/seine/config"
-	"gorm.io/driver/mysql"
+	"github.com/leafney/seine/pkg/xlogx"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"log"
 )
 
-type DBService struct {
+type GormDBSvc struct {
 	*gorm.DB
 }
 
-func NewDBService(cfg *config.Config, stop chan struct{}) *DBService {
-	db, err := gorm.Open(mysql.Open(cfg.DSN), &gorm.Config{})
+func NewGormDBSvc(cfg *config.Config, log *xlogx.XLogSvc, stop chan struct{}) *GormDBSvc {
+	db, err := gorm.Open(sqlite.Open(cfg.DSN), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("[Sqlite] connect error [%v]", err)
 	}
@@ -44,24 +44,13 @@ func NewDBService(cfg *config.Config, stop chan struct{}) *DBService {
 			log.Fatalf("[Sqlite] Get sql.DB error [%v]", err)
 		}
 		if err := sqlDb.Close(); err != nil {
-			log.Printf("[Sqlite] Closed error [%v]", err)
+			log.Fatalf("[Sqlite] Closed error [%v]", err)
 		} else {
-			log.Println("[Sqlite] Exit successful")
+			log.Infoln("[Sqlite] Exit successful")
 		}
 	}()
 
-	log.Println("[Sqlite] Load successful")
+	log.Infoln("[Sqlite] Load successful")
 
-	return &DBService{
-		DB: db,
-	}
-
+	return &GormDBSvc{DB: db}
 }
-
-//func (ds *DBService) Stop() error {
-//	sqlDb, err := ds.DB.DB()
-//	if err != nil {
-//		return err
-//	}
-//	return sqlDb.Close()
-//}

@@ -13,11 +13,17 @@ import (
 	"github.com/leafney/seine/config"
 	"github.com/leafney/seine/internal"
 	"github.com/leafney/seine/pkg/gormx"
+	"github.com/leafney/seine/pkg/xlogx"
 )
 
 var AppSet = wire.NewSet(
 	config.NewConfig,
-	gormx.NewDBService,
+	gormx.NewGormDBSvc,
+	xlogx.NewXLogSvc,
 	internal.Set,
-	NewApp,
 )
+
+type Injector struct {
+	L *xlogx.XLogSvc
+	R DefRouter
+}

@@ -49,5 +49,12 @@ type (
 
 func NewConfig() (*Config, error) {
 
-	return &Config{}, nil
+	cfg := &Config{
+		DSN: "data/test.db",
+		Log: Log{
+			XEnable: true,
+		},
+	}
+
+	return cfg, nil
 }

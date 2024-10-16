@@ -7,3 +7,13 @@
  */
 
 package cmd
+
+import "github.com/gofiber/fiber/v2"
+
+func NewMiddlewares() []*fiber.App {
+	return []*fiber.App{
+		//Middleware1,
+		//Middleware2,
+		//Middleware3,
+	}
+}

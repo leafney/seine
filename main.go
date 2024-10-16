@@ -21,8 +21,11 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 	defer callback()
 
-	app.Start()
+	if err := app.R.Init(); err != nil {
+		app.L.Fatalf("初始化异常 %v", err)
+	}
+
+	cmd.StartHttpServer(app, quitChan)
 }

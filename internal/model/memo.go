@@ -17,3 +17,7 @@ type Memo struct {
 	CreateAt time.Time `json:"create_at"`
 	UpdateAt time.Time `json:"update_at"`
 }
+
+func (c *Memo) TableName() string {
+	return "memos"
+}

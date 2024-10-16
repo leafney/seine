@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
-	"github.com/leafney/seine/internal/api"
 	"os"
 	"os/signal"
 	"sync"
@@ -27,17 +26,19 @@ type App struct {
 	quit chan struct{}
 }
 
-func NewApp(api *api.MemoApi, quit chan struct{}) *App {
-	app := fiber.New()
+func NewApp(quit chan struct{}) *App {
+	//app := fiber.New()
 
 	// TODO router middlewares
-	app.Get("/test", func(c *fiber.Ctx) error {
-		return c.SendString("hello")
-	})
+	//app.Get("/test", func(c *fiber.Ctx) error {
+	//	return c.SendString("hello")
+	//})
 
-	app.Get("/memo", api.List)
+	//app.Get("/memo", api.List)
 
-	return &App{App: app, port: "8090", quit: quit}
+	//app.Use()
+
+	return &App{port: "8090", quit: quit}
 }
 
 func (a *App) Start() {
