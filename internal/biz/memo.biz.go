@@ -11,15 +11,18 @@ package biz
 import (
 	"context"
 	"github.com/leafney/seine/internal/dao"
+	"github.com/leafney/seine/pkg/redisx"
 )
 
 type MemoBiz struct {
+	cache   *redisx.RRedisSvc
 	memoDao *dao.MemoDao
 }
 
-func NewMemoBiz(dao *dao.MemoDao) *MemoBiz {
+func NewMemoBiz(dao *dao.MemoDao, cache *redisx.RRedisSvc) *MemoBiz {
 	return &MemoBiz{
 		memoDao: dao,
+		cache:   cache,
 	}
 }
 

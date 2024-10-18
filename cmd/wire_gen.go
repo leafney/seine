@@ -12,12 +12,13 @@ import (
 	"github.com/leafney/seine/internal/biz"
 	"github.com/leafney/seine/internal/dao"
 	"github.com/leafney/seine/pkg/gormx"
+	"github.com/leafney/seine/pkg/redisx"
 	"github.com/leafney/seine/pkg/xlogx"
 )
 
 // Injectors from wire.go:
 
-func InitApp(stop chan struct{}) (*Injector, func(), error) {
+func BuildInjector(stop chan struct{}) (*Injector, func(), error) {
 	configConfig, err := config.NewConfig()
 	if err != nil {
 		return nil, nil, err
@@ -25,7 +26,8 @@ func InitApp(stop chan struct{}) (*Injector, func(), error) {
 	xLogSvc := xlogx.NewXLogSvc(configConfig)
 	gormDBSvc := gormx.NewGormDBSvc(configConfig, xLogSvc, stop)
 	memoDao := dao.NewMemoDao(gormDBSvc)
-	memoBiz := biz.NewMemoBiz(memoDao)
+	rRedisSvc := redisx.NewRRedisSvc(configConfig, stop)
+	memoBiz := biz.NewMemoBiz(memoDao, rRedisSvc)
 	memoApi := api.NewMemoApi(memoBiz)
 	defRouter := DefRouter{
 		DB:      gormDBSvc,

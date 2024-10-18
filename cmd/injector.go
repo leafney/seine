@@ -13,12 +13,14 @@ import (
 	"github.com/leafney/seine/config"
 	"github.com/leafney/seine/internal"
 	"github.com/leafney/seine/pkg/gormx"
+	"github.com/leafney/seine/pkg/redisx"
 	"github.com/leafney/seine/pkg/xlogx"
 )
 
 var AppSet = wire.NewSet(
 	config.NewConfig,
 	gormx.NewGormDBSvc,
+	redisx.NewRRedisSvc,
 	xlogx.NewXLogSvc,
 	internal.Set,
 )
