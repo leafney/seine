@@ -1,0 +1,138 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package errc
+
+import (
+	"fmt"
+	"net/http"
+)
+
+// 错误码定义
+const (
+	// 系统级错误码
+	ErrSystem       = 10001 // 系统错误
+	ErrParam        = 10002 // 参数错误
+	ErrUnauthorized = 10003 // 未授权
+	ErrForbidden    = 10004 // 禁止访问
+	ErrNotFound     = 10005 // 资源不存在
+	ErrTimeout      = 10006 // 请求超时
+	ErrTooMany      = 10007 // 请求过多
+	
+	// 业务级错误码
+	ErrBusiness     = 20001 // 业务错误
+	ErrDatabase     = 20002 // 数据库错误
+	ErrCache        = 20003 // 缓存错误
+	ErrValidation   = 20004 // 数据验证错误
+	
+	// 用户相关错误码
+	ErrUserNotFound = 30001 // 用户不存在
+	ErrPassword     = 30002 // 密码错误
+	ErrToken        = 30003 // Token无效
+	ErrPermission   = 30004 // 权限不足
+)
+
+// 错误码对应的HTTP状态码
+var httpStatus = map[int]int{
+	ErrSystem:       http.StatusInternalServerError,
+	ErrParam:        http.StatusBadRequest,
+	ErrUnauthorized: http.StatusUnauthorized,
+	ErrForbidden:    http.StatusForbidden,
+	ErrNotFound:     http.StatusNotFound,
+	ErrTimeout:      http.StatusRequestTimeout,
+	ErrTooMany:      http.StatusTooManyRequests,
+	
+	ErrBusiness:     http.StatusBadRequest,
+	ErrDatabase:     http.StatusInternalServerError,
+	ErrCache:        http.StatusInternalServerError,
+	ErrValidation:   http.StatusBadRequest,
+	
+	ErrUserNotFound: http.StatusNotFound,
+	ErrPassword:     http.StatusBadRequest,
+	ErrToken:        http.StatusUnauthorized,
+	ErrPermission:   http.StatusForbidden,
+}
+
+// 错误码对应的错误消息
+var errorMessages = map[int]string{
+	ErrSystem:       "系统错误",
+	ErrParam:        "参数错误",
+	ErrUnauthorized: "未授权",
+	ErrForbidden:    "禁止访问",
+	ErrNotFound:     "资源不存在",
+	ErrTimeout:      "请求超时",
+	ErrTooMany:      "请求过多",
+	
+	ErrBusiness:     "业务错误",
+	ErrDatabase:     "数据库错误",
+	ErrCache:        "缓存错误",
+	ErrValidation:   "数据验证错误",
+	
+	ErrUserNotFound: "用户不存在",
+	ErrPassword:     "密码错误",
+	ErrToken:        "Token无效",
+	ErrPermission:   "权限不足",
+}
+
+// Error 错误结构体
+type Error struct {
+	Code    int    `json:"code"`    // 错误码
+	Message string `json:"message"` // 错误消息
+	Detail  string `json:"detail"`  // 错误详情
+}
+
+// NewError 创建新的错误
+func NewError(code int, detail string) *Error {
+	message, ok := errorMessages[code]
+	if !ok {
+		message = "未知错误"
+	}
+	
+	return &Error{
+		Code:    code,
+		Message: message,
+		Detail:  detail,
+	}
+}
+
+// Error 实现error接口
+func (e *Error) Error() string {
+	if e.Detail != "" {
+		return fmt.Sprintf("错误码: %d, 错误信息: %s, 详情: %s", e.Code, e.Message, e.Detail)
+	}
+	return fmt.Sprintf("错误码: %d, 错误信息: %s", e.Code, e.Message)
+}
+
+// HTTPStatus 获取对应的HTTP状态码
+func (e *Error) HTTPStatus() int {
+	status, ok := httpStatus[e.Code]
+	if !ok {
+		return http.StatusInternalServerError
+	}
+	return status
+}
+
+// WithDetail 添加错误详情
+func (e *Error) WithDetail(detail string) *Error {
+	return &Error{
+		Code:    e.Code,
+		Message: e.Message,
+		Detail:  detail,
+	}
+}
+
+// IsError 判断是否为特定错误码
+func IsError(err error, code int) bool {
+	if err == nil {
+		return false
+	}
+	
+	e, ok := err.(*Error)
+	if !ok {
+		return false
+	}
+	
+	return e.Code == code
+}

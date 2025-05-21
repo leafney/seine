@@ -1,0 +1,134 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package service
+
+import (
+	"context"
+	"sync"
+	"time"
+
+	"{{.ModulePath}}/config"
+	"{{.ModulePath}}/pkg/zlogx"
+	"github.com/robfig/cron/v3"
+	"go.uber.org/zap"
+)
+
+// Cron 定时任务服务
+type Cron struct {
+	cron     *cron.Cron
+	log      *zlogx.ZLogSvc
+	cfg      *config.Config
+	jobs     map[string]cron.EntryID
+	isActive bool
+	mu       sync.Mutex
+}
+
+// NewCron 创建定时任务服务
+func NewCron(cfg *config.Config, log *zlogx.ZLogSvc) *Cron {
+	c := cron.New(cron.WithSeconds())
+	return &Cron{
+		cron:     c,
+		log:      log,
+		cfg:      cfg,
+		jobs:     make(map[string]cron.EntryID),
+		isActive: false,
+	}
+}
+
+// LoadJobs 加载定时任务
+func (s *Cron) LoadJobs(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// 在这里加载定时任务
+	s.log.Info("定时任务已加载")
+	return nil
+}
+
+// Start 启动定时任务
+func (s *Cron) Start() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.isActive {
+		return
+	}
+
+	s.cron.Start()
+	s.isActive = true
+	s.log.Info("定时任务服务已启动")
+}
+
+// Stop 停止定时任务
+func (s *Cron) Stop() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.isActive {
+		return
+	}
+
+	ctx := s.cron.Stop()
+	<-ctx.Done()
+	s.isActive = false
+	s.log.Info("定时任务服务已停止")
+}
+
+// AddJob 添加定时任务
+func (s *Cron) AddJob(name, spec string, cmd func()) (cron.EntryID, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.isActive {
+		s.log.Warn("定时任务服务未启动，无法添加任务")
+		return 0, nil
+	}
+
+	// 包装任务，添加日志记录
+	wrappedJob := cron.FuncJob(func() {
+		start := time.Now()
+		s.log.Info("开始执行定时任务", zap.String("name", name))
+
+		// 执行任务
+		cmd()
+
+		elapsed := time.Since(start)
+		s.log.Info("定时任务执行完成", 
+			zap.String("name", name), 
+			zap.Duration("elapsed", elapsed))
+	})
+
+	// 添加到调度器
+	id, err := s.cron.AddJob(spec, wrappedJob)
+	if err != nil {
+		s.log.Error("添加定时任务失败", 
+			zap.String("name", name), 
+			zap.String("spec", spec), 
+			zap.Error(err))
+		return 0, err
+	}
+
+	// 记录任务ID
+	s.jobs[name] = id
+	s.log.Info("已添加定时任务", zap.String("name", name), zap.String("spec", spec))
+	return id, nil
+}
+
+// RemoveJob 移除定时任务
+func (s *Cron) RemoveJob(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	id, exists := s.jobs[name]
+	if !exists {
+		s.log.Warn("尝试移除不存在的定时任务", zap.String("name", name))
+		return
+	}
+
+	s.cron.Remove(id)
+	delete(s.jobs, name)
+	s.log.Info("已移除定时任务", zap.String("name", name))
+}

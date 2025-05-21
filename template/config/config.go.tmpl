@@ -1,0 +1,92 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package config
+
+import (
+	"embed"
+	"io/fs"
+	"log"
+	"os"
+
+	"github.com/creasty/defaults"
+	"github.com/knadh/koanf/parsers/toml/v2"
+	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/v2"
+)
+
+//go:embed config.toml.default
+var DefaultConfig embed.FS
+
+type Config struct {
+	Port  string
+	Log   Log
+	Redis Redis
+}
+
+type (
+	Log struct {
+		Enable bool   `default:"true"`
+		Debug  bool   `default:"true"`
+		Level  string
+	}
+
+	Redis struct {
+		Addr string
+		Pwd  string
+		DB   int
+	}
+)
+
+var k = koanf.New(".")
+
+func NewConfig() (*Config, error) {
+	cfg := new(Config)
+	path := "data/config.toml"
+
+	if exist := loadDefaultConfig(path); !exist {
+		log.Printf("[Koanf] 创建默认配置文件 [%v]", path)
+		os.Exit(0)
+	}
+
+	if err := k.Load(file.Provider(path), toml.Parser()); err != nil {
+		log.Fatalf("[Koanf] 加载配置文件 [%v] 错误 [%v]", path, err)
+	}
+
+	// 先设置默认值
+	if err := defaults.Set(cfg); err != nil {
+		log.Fatalf("[Koanf] 设置默认值错误 [%v]", err)
+	}
+	// 再解析配置参数
+	if err := k.Unmarshal("", cfg); err != nil {
+		log.Fatalf("[Koanf] 解析配置错误 [%v]", err)
+	}
+
+	log.Println("[Koanf] 加载成功")
+	return cfg, nil
+}
+
+func loadDefaultConfig(path string) (exist bool) {
+	exist = true
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		exist = false
+		// 保证配置文件所在目录存在
+		if err := os.MkdirAll("data", 0755); err != nil {
+			log.Fatalf("[Koanf] 创建配置目录失败: %v", err)
+		}
+
+		data, err := fs.ReadFile(DefaultConfig, "config.toml.default")
+		if err != nil {
+			log.Fatalf("[Koanf] 读取嵌入配置失败: %v", err)
+		}
+
+		if err := os.WriteFile(path, data, 0644); err != nil {
+			log.Fatalf("[Koanf] 写入默认配置文件失败: %v", err)
+		}
+
+		log.Println("[Koanf] 默认配置文件已创建")
+	}
+	return exist
+}

@@ -1,0 +1,18 @@
+//go:build wireinject
+// +build wireinject
+
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package cmd
+
+import (
+	"github.com/google/wire"
+)
+
+func BuildInjector(quit chan struct{}) (*Injector, func(), error) {
+	wire.Build(AppSet, wire.Struct(new(Injector), "*"))
+	return &Injector{}, nil, nil
+}

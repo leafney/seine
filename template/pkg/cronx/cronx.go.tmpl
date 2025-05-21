@@ -1,0 +1,150 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package cronx
+
+import (
+	"context"
+	"time"
+
+	"{{.ModulePath}}/config"
+	"{{.ModulePath}}/pkg/zlogx"
+	"github.com/robfig/cron/v3"
+	"go.uber.org/zap"
+)
+
+// CronSvc 定时任务服务
+type CronSvc struct {
+	cron     *cron.Cron
+	log      *zlogx.ZLogSvc
+	stop     chan struct{}
+	jobIDs   map[string]cron.EntryID
+	isActive bool
+}
+
+// Job 定时任务接口
+type Job interface {
+	Run()
+	Name() string
+}
+
+// NewCronSvc 创建定时任务服务
+func NewCronSvc(cfg *config.Config, log *zlogx.ZLogSvc, stop chan struct{}) *CronSvc {
+	cronCfg := cfg.Cron
+	if !cronCfg.Enable {
+		log.Info("定时任务服务未启用")
+		return &CronSvc{
+			cron:     nil,
+			log:      log,
+			stop:     stop,
+			jobIDs:   make(map[string]cron.EntryID),
+			isActive: false,
+		}
+	}
+
+	// 创建带有秒级精度的定时任务调度器
+	c := cron.New(cron.WithSeconds())
+
+	svc := &CronSvc{
+		cron:     c,
+		log:      log,
+		stop:     stop,
+		jobIDs:   make(map[string]cron.EntryID),
+		isActive: true,
+	}
+
+	// 启动定时任务
+	c.Start()
+	log.Info("定时任务服务已启动")
+
+	// 监听停止信号
+	go func() {
+		<-stop
+		svc.Stop()
+	}()
+
+	return svc
+}
+
+// AddJob 添加定时任务
+func (s *CronSvc) AddJob(spec string, job Job) (cron.EntryID, error) {
+	if !s.isActive || s.cron == nil {
+		return 0, nil
+	}
+
+	jobName := job.Name()
+	s.log.Info("添加定时任务", zap.String("name", jobName), zap.String("spec", spec))
+
+	// 包装任务，添加日志记录
+	wrappedJob := cron.FuncJob(func() {
+		start := time.Now()
+		s.log.Info("开始执行定时任务", zap.String("name", jobName))
+
+		// 执行任务
+		job.Run()
+
+		elapsed := time.Since(start)
+		s.log.Info("定时任务执行完成", 
+			zap.String("name", jobName), 
+			zap.Duration("elapsed", elapsed))
+	})
+
+	// 添加到调度器
+	id, err := s.cron.AddJob(spec, wrappedJob)
+	if err != nil {
+		s.log.Error("添加定时任务失败", 
+			zap.String("name", jobName), 
+			zap.String("spec", spec), 
+			zap.Error(err))
+		return 0, err
+	}
+
+	// 记录任务ID
+	s.jobIDs[jobName] = id
+	return id, nil
+}
+
+// RemoveJob 移除定时任务
+func (s *CronSvc) RemoveJob(name string) {
+	if !s.isActive || s.cron == nil {
+		return
+	}
+
+	id, exists := s.jobIDs[name]
+	if !exists {
+		s.log.Warn("尝试移除不存在的定时任务", zap.String("name", name))
+		return
+	}
+
+	s.cron.Remove(id)
+	delete(s.jobIDs, name)
+	s.log.Info("已移除定时任务", zap.String("name", name))
+}
+
+// Stop 停止定时任务服务
+func (s *CronSvc) Stop() {
+	if !s.isActive || s.cron == nil {
+		return
+	}
+
+	ctx := context.Background()
+	s.cron.Stop()
+	<-s.cron.Stop().Done()
+	s.isActive = false
+	s.log.Info("定时任务服务已停止")
+}
+
+// IsActive 检查定时任务服务是否活跃
+func (s *CronSvc) IsActive() bool {
+	return s.isActive
+}
+
+// GetEntries 获取所有定时任务
+func (s *CronSvc) GetEntries() []cron.Entry {
+	if !s.isActive || s.cron == nil {
+		return nil
+	}
+	return s.cron.Entries()
+}

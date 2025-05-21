@@ -1,0 +1,23 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package api
+
+import (
+	"github.com/gofiber/fiber/v2"
+	"{{.ModulePath}}/pkg/response"
+	"{{.ModulePath}}/pkg/versionx"
+)
+
+// Home API处理器
+type Home struct {
+	VersionSvc *versionx.InfoSvc
+}
+
+// Version 获取版本信息
+func (h *Home) Version(c *fiber.Ctx) error {
+	version := h.VersionSvc.GetVersion()
+	return response.OkWithData(c, version)
+}

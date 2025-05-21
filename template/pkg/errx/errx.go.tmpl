@@ -1,0 +1,77 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package errx
+
+import (
+	"errors"
+	"fmt"
+)
+
+// 错误码定义
+const (
+	CodeSuccess      = 0
+	CodeParamError   = 1001
+	CodeInternalError = 1002
+	CodeNotFound     = 1004
+	CodeUnauthorized = 1005
+)
+
+// 错误信息定义
+var msgMap = map[int]string{
+	CodeSuccess:      "成功",
+	CodeParamError:   "参数错误",
+	CodeInternalError: "内部错误",
+	CodeNotFound:     "资源不存在",
+	CodeUnauthorized: "未授权",
+}
+
+// Error 自定义错误类型
+type Error struct {
+	Code int
+	Msg  string
+}
+
+// Error 实现error接口
+func (e *Error) Error() string {
+	return fmt.Sprintf("错误码: %d, 错误信息: %s", e.Code, e.Msg)
+}
+
+// New 创建新的错误
+func New(code int) *Error {
+	msg, ok := msgMap[code]
+	if !ok {
+		msg = "未知错误"
+	}
+	return &Error{
+		Code: code,
+		Msg:  msg,
+	}
+}
+
+// NewWithMsg 创建带自定义消息的错误
+func NewWithMsg(code int, msg string) *Error {
+	return &Error{
+		Code: code,
+		Msg:  msg,
+	}
+}
+
+// FromError 从标准error转换为自定义Error
+func FromError(err error) *Error {
+	if err == nil {
+		return nil
+	}
+	
+	var e *Error
+	if errors.As(err, &e) {
+		return e
+	}
+	
+	return &Error{
+		Code: CodeInternalError,
+		Msg:  err.Error(),
+	}
+}

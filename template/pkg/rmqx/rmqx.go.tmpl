@@ -1,0 +1,191 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package rmqx
+
+import (
+	"context"
+	"time"
+
+	"{{.ModulePath}}/config"
+	"{{.ModulePath}}/pkg/zlogx"
+	"github.com/streadway/amqp"
+	"go.uber.org/zap"
+)
+
+// RMQSvc RabbitMQ服务
+type RMQSvc struct {
+	conn    *amqp.Connection
+	channel *amqp.Channel
+	log     *zlogx.ZLogSvc
+	stop    chan struct{}
+	cfg     *config.Config
+}
+
+// NewRMQSvc 创建RabbitMQ服务
+func NewRMQSvc(cfg *config.Config, log *zlogx.ZLogSvc, stop chan struct{}) *RMQSvc {
+	rmqCfg := cfg.RabbitMQ
+	if !rmqCfg.Enable {
+		log.Info("RabbitMQ服务未启用")
+		return &RMQSvc{
+			conn:    nil,
+			channel: nil,
+			log:     log,
+			stop:    stop,
+			cfg:     cfg,
+		}
+	}
+
+	// 连接RabbitMQ
+	conn, err := amqp.Dial(rmqCfg.URL)
+	if err != nil {
+		log.Error("RabbitMQ连接失败", zap.Error(err))
+		return &RMQSvc{
+			conn:    nil,
+			channel: nil,
+			log:     log,
+			stop:    stop,
+			cfg:     cfg,
+		}
+	}
+
+	// 创建通道
+	channel, err := conn.Channel()
+	if err != nil {
+		log.Error("RabbitMQ创建通道失败", zap.Error(err))
+		conn.Close()
+		return &RMQSvc{
+			conn:    nil,
+			channel: nil,
+			log:     log,
+			stop:    stop,
+			cfg:     cfg,
+		}
+	}
+
+	log.Info("RabbitMQ连接成功")
+	rmq := &RMQSvc{
+		conn:    conn,
+		channel: channel,
+		log:     log,
+		stop:    stop,
+		cfg:     cfg,
+	}
+
+	// 监听连接关闭
+	go rmq.monitorConnection()
+
+	return rmq
+}
+
+// monitorConnection 监控RabbitMQ连接状态
+func (s *RMQSvc) monitorConnection() {
+	if s.conn == nil {
+		return
+	}
+
+	closeChan := make(chan *amqp.Error)
+	s.conn.NotifyClose(closeChan)
+
+	select {
+	case err := <-closeChan:
+		s.log.Error("RabbitMQ连接关闭", zap.Error(err))
+		// 尝试重连
+		s.reconnect()
+	case <-s.stop:
+		s.log.Info("RabbitMQ服务停止")
+		s.Close()
+	}
+}
+
+// reconnect 重新连接RabbitMQ
+func (s *RMQSvc) reconnect() {
+	if s.conn != nil {
+		s.conn.Close()
+	}
+	if s.channel != nil {
+		s.channel.Close()
+	}
+
+	rmqCfg := s.cfg.RabbitMQ
+	maxRetries := 5
+	retryInterval := 5 * time.Second
+
+	for i := 0; i < maxRetries; i++ {
+		s.log.Info("尝试重新连接RabbitMQ", zap.Int("attempt", i+1))
+		conn, err := amqp.Dial(rmqCfg.URL)
+		if err == nil {
+			channel, err := conn.Channel()
+			if err == nil {
+				s.conn = conn
+				s.channel = channel
+				s.log.Info("RabbitMQ重新连接成功")
+				go s.monitorConnection()
+				return
+			}
+			conn.Close()
+		}
+		time.Sleep(retryInterval)
+	}
+	s.log.Error("RabbitMQ重新连接失败，已达到最大重试次数")
+}
+
+// Close 关闭RabbitMQ连接
+func (s *RMQSvc) Close() {
+	if s.channel != nil {
+		s.channel.Close()
+	}
+	if s.conn != nil {
+		s.conn.Close()
+	}
+}
+
+// PublishMessage 发布消息
+func (s *RMQSvc) PublishMessage(exchange, routingKey string, message []byte) error {
+	if s.channel == nil {
+		return nil
+	}
+	return s.channel.Publish(
+		exchange,   // exchange
+		routingKey, // routing key
+		false,      // mandatory
+		false,      // immediate
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        message,
+		},
+	)
+}
+
+// DeclareQueue 声明队列
+func (s *RMQSvc) DeclareQueue(name string) (amqp.Queue, error) {
+	if s.channel == nil {
+		return amqp.Queue{}, nil
+	}
+	return s.channel.QueueDeclare(
+		name,  // name
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+}
+
+// ConsumeQueue 消费队列
+func (s *RMQSvc) ConsumeQueue(queueName, consumerName string) (<-chan amqp.Delivery, error) {
+	if s.channel == nil {
+		return nil, nil
+	}
+	return s.channel.Consume(
+		queueName,    // queue
+		consumerName, // consumer
+		false,        // auto-ack
+		false,        // exclusive
+		false,        // no-local
+		false,        // no-wait
+		nil,          // args
+	)
+}

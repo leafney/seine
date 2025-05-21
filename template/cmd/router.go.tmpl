@@ -1,0 +1,40 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package cmd
+
+import (
+	"context"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"{{.ModulePath}}/pkg/middlewarex"
+)
+
+type DefRouter struct {
+	// 在这里添加API和Service引用
+}
+
+func (r *DefRouter) Init(ctx context.Context) error {
+	return nil
+}
+
+func (r *DefRouter) UseMiddlewares(app *fiber.App, inj *Injector) {
+	app.Use(cors.New())
+	app.Use(middlewarex.RequestLogger(inj.L))
+}
+
+func (r *DefRouter) SetupRoutes(app *fiber.App, inj *Injector) {
+	// API路由设置
+	v1G := app.Group("/api/v1")
+	{
+		// 在这里添加API路由
+		v1G.Get("/health", func(c *fiber.Ctx) error {
+			return c.JSON(fiber.Map{
+				"status": "ok",
+			})
+		})
+	}
+}

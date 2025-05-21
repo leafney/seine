@@ -1,0 +1,42 @@
+# {{.ProjectName}}
+
+## 简介
+
+这是一个使用Seine框架生成的Go Web项目。
+
+## 目录结构
+
+- cmd: 命令行相关代码
+- config: 配置相关代码
+- internal: 内部代码
+  - api: API处理器
+  - biz: 业务逻辑
+  - dao: 数据访问
+  - model: 数据模型
+  - service: 服务组件
+- pkg: 公共包
+- web: Web资源
+
+## 快速开始
+
+### 运行
+
+```bash
+go run main.go
+```
+
+### 构建
+
+```bash
+make build
+```
+
+### 开发模式
+
+```bash
+make dev
+```
+
+## 配置
+
+配置文件位于 `data/config.toml`，首次运行会自动生成默认配置文件。

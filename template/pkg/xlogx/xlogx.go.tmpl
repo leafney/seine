@@ -1,0 +1,86 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package xlogx
+
+import (
+	"log"
+	"os"
+	"path/filepath"
+
+	"{{.ModulePath}}/config"
+)
+
+// XLogSvc 日志服务
+type XLogSvc struct {
+	logger *log.Logger
+	debug  bool
+}
+
+// NewXLogSvc 创建日志服务
+func NewXLogSvc(cfg *config.Config) (*XLogSvc, error) {
+	// 确保日志目录存在
+	if err := os.MkdirAll("logs", 0755); err != nil {
+		return nil, err
+	}
+
+	// 创建或打开日志文件
+	logFile, err := os.OpenFile(filepath.Join("logs", "app.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return nil, err
+	}
+
+	// 创建日志记录器
+	logger := log.New(logFile, "", log.LstdFlags)
+
+	return &XLogSvc{
+		logger: logger,
+		debug:  cfg.Log.Debug,
+	}, nil
+}
+
+// Info 记录信息日志
+func (l *XLogSvc) Info(v ...interface{}) {
+	l.logger.Println(v...)
+}
+
+// Infof 记录格式化信息日志
+func (l *XLogSvc) Infof(format string, v ...interface{}) {
+	l.logger.Printf(format, v...)
+}
+
+// Error 记录错误日志
+func (l *XLogSvc) Error(v ...interface{}) {
+	l.logger.Println("ERROR:", v)
+}
+
+// Errorf 记录格式化错误日志
+func (l *XLogSvc) Errorf(format string, v ...interface{}) {
+	l.logger.Printf("ERROR: "+format, v...)
+}
+
+// Debug 记录调试日志
+func (l *XLogSvc) Debug(v ...interface{}) {
+	if l.debug {
+		l.logger.Println("DEBUG:", v)
+	}
+}
+
+// Debugf 记录格式化调试日志
+func (l *XLogSvc) Debugf(format string, v ...interface{}) {
+	if l.debug {
+		l.logger.Printf("DEBUG: "+format, v...)
+	}
+}
+
+// Fatal 记录致命错误并退出
+func (l *XLogSvc) Fatal(v ...interface{}) {
+	l.logger.Fatal(v...)
+}
+
+// Fatalf 记录格式化致命错误并退出
+func (l *XLogSvc) Fatalf(format string, v ...interface{}) {
+	l.logger.Fatalf(format, v...)
+}

@@ -1,0 +1,178 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package cachex
+
+import (
+	"sync"
+	"time"
+
+	"{{.ModulePath}}/config"
+	"{{.ModulePath}}/pkg/zlogx"
+	"go.uber.org/zap"
+)
+
+// CacheItem 缓存项
+type CacheItem struct {
+	Value      interface{} // 值
+	Expiration int64       // 过期时间戳
+}
+
+// CacheSvc 本地缓存服务
+type CacheSvc struct {
+	items    map[string]CacheItem // 缓存项
+	mutex    sync.RWMutex         // 读写锁
+	log      *zlogx.ZLogSvc       // 日志服务
+	stop     chan struct{}        // 停止信号
+	interval time.Duration        // 清理间隔
+}
+
+// NewCacheSvc 创建本地缓存服务
+func NewCacheSvc(cfg *config.Config, log *zlogx.ZLogSvc, stop chan struct{}) *CacheSvc {
+	cacheCfg := cfg.Cache
+	if !cacheCfg.Enable {
+		log.Info("本地缓存服务未启用")
+		return &CacheSvc{
+			items:    make(map[string]CacheItem),
+			log:      log,
+			stop:     stop,
+			interval: 0,
+		}
+	}
+
+	// 默认清理间隔为5分钟
+	interval := 5 * time.Minute
+	if cacheCfg.CleanInterval > 0 {
+		interval = time.Duration(cacheCfg.CleanInterval) * time.Second
+	}
+
+	cache := &CacheSvc{
+		items:    make(map[string]CacheItem),
+		log:      log,
+		stop:     stop,
+		interval: interval,
+	}
+
+	// 启动定期清理过期项目的协程
+	if interval > 0 {
+		go cache.startCleaner()
+	}
+
+	log.Info("本地缓存服务已启动", zap.Duration("cleanInterval", interval))
+	return cache
+}
+
+// startCleaner 启动清理器
+func (c *CacheSvc) startCleaner() {
+	ticker := time.NewTicker(c.interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			c.cleanExpired()
+		case <-c.stop:
+			return
+		}
+	}
+}
+
+// cleanExpired 清理过期的缓存项
+func (c *CacheSvc) cleanExpired() {
+	now := time.Now().UnixNano()
+	var expiredKeys []string
+
+	// 查找过期的键
+	c.mutex.RLock()
+	for k, v := range c.items {
+		if v.Expiration > 0 && v.Expiration < now {
+			expiredKeys = append(expiredKeys, k)
+		}
+	}
+	c.mutex.RUnlock()
+
+	// 删除过期的键
+	if len(expiredKeys) > 0 {
+		c.mutex.Lock()
+		for _, k := range expiredKeys {
+			delete(c.items, k)
+		}
+		c.mutex.Unlock()
+		c.log.Debug("已清理过期缓存项", zap.Int("count", len(expiredKeys)))
+	}
+}
+
+// Set 设置缓存项，带过期时间
+func (c *CacheSvc) Set(key string, value interface{}, duration time.Duration) {
+	var expiration int64
+	if duration > 0 {
+		expiration = time.Now().Add(duration).UnixNano()
+	}
+
+	c.mutex.Lock()
+	c.items[key] = CacheItem{
+		Value:      value,
+		Expiration: expiration,
+	}
+	c.mutex.Unlock()
+}
+
+// Get 获取缓存项
+func (c *CacheSvc) Get(key string) (interface{}, bool) {
+	c.mutex.RLock()
+	item, found := c.items[key]
+	c.mutex.RUnlock()
+
+	// 如果未找到或已过期，返回未找到
+	if !found {
+		return nil, false
+	}
+
+	// 检查是否过期
+	if item.Expiration > 0 && item.Expiration < time.Now().UnixNano() {
+		// 异步删除过期项
+		go func() {
+			c.mutex.Lock()
+			delete(c.items, key)
+			c.mutex.Unlock()
+		}()
+		return nil, false
+	}
+
+	return item.Value, true
+}
+
+// Delete 删除缓存项
+func (c *CacheSvc) Delete(key string) {
+	c.mutex.Lock()
+	delete(c.items, key)
+	c.mutex.Unlock()
+}
+
+// Clear 清空所有缓存项
+func (c *CacheSvc) Clear() {
+	c.mutex.Lock()
+	c.items = make(map[string]CacheItem)
+	c.mutex.Unlock()
+}
+
+// Count 获取缓存项数量
+func (c *CacheSvc) Count() int {
+	c.mutex.RLock()
+	count := len(c.items)
+	c.mutex.RUnlock()
+	return count
+}
+
+// Keys 获取所有键
+func (c *CacheSvc) Keys() []string {
+	c.mutex.RLock()
+	keys := make([]string, 0, len(c.items))
+	for k := range c.items {
+		keys = append(keys, k)
+	}
+	c.mutex.RUnlock()
+	return keys
+}

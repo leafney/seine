@@ -1,0 +1,142 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package service
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"sync"
+	"time"
+
+	"{{.ModulePath}}/config"
+	"{{.ModulePath}}/pkg/zlogx"
+	"go.uber.org/zap"
+)
+
+// NotifyMessage 通知消息
+type NotifyMessage struct {
+	Title   string `json:"title"`
+	Content string `json:"content"`
+	Level   string `json:"level"` // info, warning, error
+	Time    string `json:"time"`
+}
+
+// Notify 通知服务
+type Notify struct {
+	cfg      *config.Config
+	log      *zlogx.ZLogSvc
+	isActive bool
+	mu       sync.Mutex
+}
+
+// NewNotify 创建通知服务
+func NewNotify(cfg *config.Config, log *zlogx.ZLogSvc) *Notify {
+	return &Notify{
+		cfg:      cfg,
+		log:      log,
+		isActive: false,
+	}
+}
+
+// Start 启动通知服务
+func (s *Notify) Start() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.isActive {
+		return nil
+	}
+
+	s.isActive = true
+	s.log.Info("通知服务已启动")
+	return nil
+}
+
+// Stop 停止通知服务
+func (s *Notify) Stop() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.isActive {
+		return
+	}
+
+	s.isActive = false
+	s.log.Info("通知服务已停止")
+}
+
+// SendNotify 发送通知
+func (s *Notify) SendNotify(title, content, level string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.isActive {
+		s.log.Warn("通知服务未启动，无法发送通知")
+		return nil
+	}
+
+	notifyCfg := s.cfg.Notify
+	if !notifyCfg.Enable || notifyCfg.WebhookURL == "" {
+		return nil
+	}
+
+	message := NotifyMessage{
+		Title:   title,
+		Content: content,
+		Level:   level,
+		Time:    time.Now().Format("2006-01-02 15:04:05"),
+	}
+
+	jsonData, err := json.Marshal(message)
+	if err != nil {
+		s.log.Error("通知消息序列化失败", zap.Error(err))
+		return err
+	}
+
+	req, err := http.NewRequest("POST", notifyCfg.WebhookURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		s.log.Error("创建通知请求失败", zap.Error(err))
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		s.log.Error("发送通知失败", zap.Error(err))
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("发送通知失败，状态码：%d", resp.StatusCode)
+		s.log.Error(err.Error())
+		return err
+	}
+
+	s.log.Info("发送通知成功", zap.String("title", title), zap.String("level", level))
+	return nil
+}
+
+// SendInfo 发送信息级别通知
+func (s *Notify) SendInfo(title, content string) error {
+	return s.SendNotify(title, content, "info")
+}
+
+// SendWarning 发送警告级别通知
+func (s *Notify) SendWarning(title, content string) error {
+	return s.SendNotify(title, content, "warning")
+}
+
+// SendError 发送错误级别通知
+func (s *Notify) SendError(title, content string) error {
+	return s.SendNotify(title, content, "error")
+}

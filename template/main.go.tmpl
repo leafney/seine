@@ -1,0 +1,61 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"runtime"
+
+	"{{.ModulePath}}/cmd"
+	"{{.ModulePath}}/config/vars"
+	"github.com/spf13/pflag"
+)
+
+var (
+	v         bool
+	h         bool
+	d         bool
+	p         string
+	Version   = "v0.1.0"
+	GitBranch = ""
+	GitCommit = ""
+	BuildTime = "{{.BuildTime}}"
+)
+
+func main() {
+	pflag.BoolVarP(&h, "help", "h", false, "help")
+	pflag.BoolVarP(&v, "version", "v", false, "version")
+	pflag.BoolVarP(&d, "debug", "d", false, "debug mode")
+	pflag.StringVarP(&p, "port", "p", vars.WebDefaultPort, "server listen port")
+	pflag.Parse()
+
+	if h {
+		pflag.PrintDefaults()
+	} else if v {
+		fmt.Println("Version:      " + Version)
+		fmt.Println("Git branch:   " + GitBranch)
+		fmt.Println("Git commit:   " + GitCommit)
+		fmt.Println("Built time:   " + BuildTime)
+		fmt.Println("Go version:   " + runtime.Version())
+		fmt.Println("OS/Arch:      " + runtime.GOOS + "/" + runtime.GOARCH)
+	} else {
+		quitChan := make(chan struct{})
+		injector, callback, err := cmd.BuildInjector(quitChan)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		defer callback()
+
+		ctx := context.Background()
+		if err := injector.R.Init(ctx); err != nil {
+			log.Fatalf("初始化异常 %v", err)
+		}
+
+		cmd.StartServer(injector, p, quitChan)
+	}
+}

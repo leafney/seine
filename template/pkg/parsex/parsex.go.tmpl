@@ -1,0 +1,86 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package parsex
+
+import (
+	"encoding/json"
+	"strconv"
+	"time"
+)
+
+// ParseSvc 解析服务
+type ParseSvc struct{}
+
+// NewParseSvc 创建解析服务
+func NewParseSvc() *ParseSvc {
+	return &ParseSvc{}
+}
+
+// StringToInt 字符串转整数
+func (s *ParseSvc) StringToInt(str string) (int, error) {
+	return strconv.Atoi(str)
+}
+
+// StringToInt64 字符串转64位整数
+func (s *ParseSvc) StringToInt64(str string) (int64, error) {
+	return strconv.ParseInt(str, 10, 64)
+}
+
+// StringToFloat 字符串转浮点数
+func (s *ParseSvc) StringToFloat(str string) (float64, error) {
+	return strconv.ParseFloat(str, 64)
+}
+
+// StringToBool 字符串转布尔值
+func (s *ParseSvc) StringToBool(str string) (bool, error) {
+	return strconv.ParseBool(str)
+}
+
+// IntToString 整数转字符串
+func (s *ParseSvc) IntToString(i int) string {
+	return strconv.Itoa(i)
+}
+
+// Int64ToString 64位整数转字符串
+func (s *ParseSvc) Int64ToString(i int64) string {
+	return strconv.FormatInt(i, 10)
+}
+
+// FloatToString 浮点数转字符串
+func (s *ParseSvc) FloatToString(f float64, precision int) string {
+	return strconv.FormatFloat(f, 'f', precision, 64)
+}
+
+// BoolToString 布尔值转字符串
+func (s *ParseSvc) BoolToString(b bool) string {
+	return strconv.FormatBool(b)
+}
+
+// JSONToMap JSON字符串转Map
+func (s *ParseSvc) JSONToMap(jsonStr string) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := json.Unmarshal([]byte(jsonStr), &result)
+	return result, err
+}
+
+// MapToJSON Map转JSON字符串
+func (s *ParseSvc) MapToJSON(m map[string]interface{}) (string, error) {
+	bytes, err := json.Marshal(m)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
+}
+
+// FormatTime 格式化时间
+func (s *ParseSvc) FormatTime(t time.Time, layout string) string {
+	return t.Format(layout)
+}
+
+// ParseTime 解析时间字符串
+func (s *ParseSvc) ParseTime(timeStr, layout string) (time.Time, error) {
+	return time.Parse(layout, timeStr)
+}

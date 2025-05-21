@@ -1,0 +1,25 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package cmd
+
+import (
+	"github.com/google/wire"
+	"{{.ModulePath}}/config"
+	"{{.ModulePath}}/internal"
+	"{{.ModulePath}}/pkg/xlogx"
+)
+
+var AppSet = wire.NewSet(
+	config.NewConfig,
+	xlogx.NewXLogSvc,
+	internal.Set,
+)
+
+type Injector struct {
+	L *xlogx.XLogSvc
+	R DefRouter
+	C *config.Config
+}

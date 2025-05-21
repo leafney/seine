@@ -1,0 +1,87 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package zlogx
+
+import (
+	"os"
+
+	"{{.ModulePath}}/config"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+)
+
+// ZLogSvc Zap日志服务
+type ZLogSvc struct {
+	*zap.Logger
+	debug bool
+}
+
+// NewZLogSvc 创建Zap日志服务
+func NewZLogSvc(cfg *config.Config) (*ZLogSvc, error) {
+	// 确保日志目录存在
+	if err := os.MkdirAll("logs", 0755); err != nil {
+		return nil, err
+	}
+
+	// 获取配置
+	logCfg := cfg.Log
+	if !logCfg.ZEnable {
+		return &ZLogSvc{
+			Logger: zap.NewNop(),
+			debug:  false,
+		}, nil
+	}
+
+	// 设置日志级别
+	var level zapcore.Level
+	switch logCfg.ZLevel {
+	case "debug":
+		level = zapcore.DebugLevel
+	case "info":
+		level = zapcore.InfoLevel
+	case "warn":
+		level = zapcore.WarnLevel
+	case "error":
+		level = zapcore.ErrorLevel
+	default:
+		level = zapcore.InfoLevel
+	}
+
+	// 创建编码器配置
+	encoderConfig := zapcore.EncoderConfig{
+		TimeKey:        "time",
+		LevelKey:       "level",
+		NameKey:        "logger",
+		CallerKey:      "caller",
+		MessageKey:     "msg",
+		StacktraceKey:  "stacktrace",
+		LineEnding:     zapcore.DefaultLineEnding,
+		EncodeLevel:    zapcore.CapitalLevelEncoder,
+		EncodeTime:     zapcore.ISO8601TimeEncoder,
+		EncodeDuration: zapcore.SecondsDurationEncoder,
+		EncodeCaller:   zapcore.ShortCallerEncoder,
+	}
+
+	// 创建核心
+	core := zapcore.NewCore(
+		zapcore.NewJSONEncoder(encoderConfig),
+		zapcore.AddSync(os.Stdout),
+		level,
+	)
+
+	// 创建日志记录器
+	var logger *zap.Logger
+	if logCfg.ZCaller {
+		logger = zap.New(core, zap.AddCaller())
+	} else {
+		logger = zap.New(core)
+	}
+
+	return &ZLogSvc{
+		Logger: logger,
+		debug:  logCfg.Debug,
+	}, nil
+}

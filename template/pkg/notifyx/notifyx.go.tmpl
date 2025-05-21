@@ -1,0 +1,103 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package notifyx
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"time"
+
+	"{{.ModulePath}}/config"
+	"{{.ModulePath}}/pkg/zlogx"
+	"go.uber.org/zap"
+)
+
+// NotifySvc 通知服务
+type NotifySvc struct {
+	cfg *config.Config
+	log *zlogx.ZLogSvc
+}
+
+// NotifyMessage 通知消息
+type NotifyMessage struct {
+	Title   string `json:"title"`
+	Content string `json:"content"`
+	Level   string `json:"level"` // info, warning, error
+	Time    string `json:"time"`
+}
+
+// NewNotifySvc 创建通知服务
+func NewNotifySvc(cfg *config.Config, log *zlogx.ZLogSvc) *NotifySvc {
+	return &NotifySvc{
+		cfg: cfg,
+		log: log,
+	}
+}
+
+// SendWebhook 发送Webhook通知
+func (s *NotifySvc) SendWebhook(title, content, level string) error {
+	notifyCfg := s.cfg.Notify
+	if !notifyCfg.Enable || notifyCfg.WebhookURL == "" {
+		return nil
+	}
+
+	message := NotifyMessage{
+		Title:   title,
+		Content: content,
+		Level:   level,
+		Time:    time.Now().Format("2006-01-02 15:04:05"),
+	}
+
+	jsonData, err := json.Marshal(message)
+	if err != nil {
+		s.log.Error("通知消息序列化失败", zap.Error(err))
+		return err
+	}
+
+	req, err := http.NewRequest("POST", notifyCfg.WebhookURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		s.log.Error("创建通知请求失败", zap.Error(err))
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		s.log.Error("发送通知失败", zap.Error(err))
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("发送通知失败，状态码：%d", resp.StatusCode)
+		s.log.Error(err.Error())
+		return err
+	}
+
+	s.log.Info("发送通知成功", zap.String("title", title), zap.String("level", level))
+	return nil
+}
+
+// SendInfo 发送信息级别通知
+func (s *NotifySvc) SendInfo(title, content string) error {
+	return s.SendWebhook(title, content, "info")
+}
+
+// SendWarning 发送警告级别通知
+func (s *NotifySvc) SendWarning(title, content string) error {
+	return s.SendWebhook(title, content, "warning")
+}
+
+// SendError 发送错误级别通知
+func (s *NotifySvc) SendError(title, content string) error {
+	return s.SendWebhook(title, content, "error")
+}

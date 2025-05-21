@@ -1,0 +1,103 @@
+/**
+ * @Project:     {{.ProjectName}}
+ * @Date:        {{.Date}}
+ */
+
+package leveldbx
+
+import (
+	"{{.ModulePath}}/config"
+	"{{.ModulePath}}/pkg/zlogx"
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
+	"go.uber.org/zap"
+)
+
+// LevelDBSvc LevelDB服务
+type LevelDBSvc struct {
+	db   *leveldb.DB
+	log  *zlogx.ZLogSvc
+	stop chan struct{}
+}
+
+// NewLevelDBSvc 创建LevelDB服务
+func NewLevelDBSvc(cfg *config.Config, log *zlogx.ZLogSvc, stop chan struct{}) *LevelDBSvc {
+	dbCfg := cfg.LevelDB
+	if !dbCfg.Enable {
+		log.Info("LevelDB服务未启用")
+		return &LevelDBSvc{
+			db:   nil,
+			log:  log,
+			stop: stop,
+		}
+	}
+
+	options := &opt.Options{
+		CompactionTableSize: 1024 * 1024 * 4, // 4MB
+		WriteBuffer:         1024 * 1024 * 4, // 4MB
+	}
+
+	db, err := leveldb.OpenFile(dbCfg.Path, options)
+	if err != nil {
+		log.Error("打开LevelDB失败", zap.Error(err))
+		return &LevelDBSvc{
+			db:   nil,
+			log:  log,
+			stop: stop,
+		}
+	}
+
+	log.Info("LevelDB连接成功", zap.String("path", dbCfg.Path))
+	return &LevelDBSvc{
+		db:   db,
+		log:  log,
+		stop: stop,
+	}
+}
+
+// Close 关闭LevelDB连接
+func (s *LevelDBSvc) Close() {
+	if s.db != nil {
+		err := s.db.Close()
+		if err != nil {
+			s.log.Error("关闭LevelDB失败", zap.Error(err))
+		}
+	}
+}
+
+// Put 存储键值对
+func (s *LevelDBSvc) Put(key, value []byte) error {
+	if s.db == nil {
+		return nil
+	}
+	return s.db.Put(key, value, nil)
+}
+
+// Get 获取值
+func (s *LevelDBSvc) Get(key []byte) ([]byte, error) {
+	if s.db == nil {
+		return nil, nil
+	}
+	return s.db.Get(key, nil)
+}
+
+// Delete 删除键
+func (s *LevelDBSvc) Delete(key []byte) error {
+	if s.db == nil {
+		return nil
+	}
+	return s.db.Delete(key, nil)
+}
+
+// Has 检查键是否存在
+func (s *LevelDBSvc) Has(key []byte) (bool, error) {
+	if s.db == nil {
+		return false, nil
+	}
+	return s.db.Has(key, nil)
+}
+
+// GetDB 获取原始DB实例
+func (s *LevelDBSvc) GetDB() *leveldb.DB {
+	return s.db
+}
