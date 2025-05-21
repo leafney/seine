@@ -116,26 +116,26 @@ func (g *Generator) generateFiles() error {
 		"internal/wire.go":           "internal/wire.go.tmpl",
 		"internal/router/router.go":  "internal/router/router.go.tmpl",
 		"internal/api/home.api.go":   "internal/api/home.api.go.tmpl",
-		
+
 		// pkg 目录下的基础库
-		"pkg/errx/errx.go":           "pkg/errx/errx.go.tmpl",
-		"pkg/middlewarex/logger.go":  "pkg/middlewarex/logger.go.tmpl",
-		"pkg/response/response.go":   "pkg/response/response.go.tmpl",
-		"pkg/xlogx/xlogx.go":         "pkg/xlogx/xlogx.go.tmpl",
-		
+		"pkg/errx/errx.go":          "pkg/errx/errx.go.tmpl",
+		"pkg/middlewarex/logger.go": "pkg/middlewarex/logger.go.tmpl",
+		"pkg/response/response.go":  "pkg/response/response.go.tmpl",
+		"pkg/xlogx/xlogx.go":        "pkg/xlogx/xlogx.go.tmpl",
+
 		// 添加更多 pkg 目录下的库
-		"pkg/versionx/version.go":    "pkg/versionx/versionx.go.tmpl",
-		"pkg/rmqx/rmqx.go":           "pkg/rmqx/rmqx.go.tmpl",
-		"pkg/redisx/redisx.go":       "pkg/redisx/redisx.go.tmpl",
-		"pkg/parsex/parsex.go":       "pkg/parsex/parsex.go.tmpl",
-		"pkg/notifyx/notifyx.go":     "pkg/notifyx/notifyx.go.tmpl",
-		"pkg/leveldbx/leveldbx.go":   "pkg/leveldbx/leveldbx.go.tmpl",
-		"pkg/errc/errc.go":           "pkg/errc/errc.go.tmpl",
-		"pkg/cronx/cronx.go":         "pkg/cronx/cronx.go.tmpl",
-		"pkg/cachex/cachex.go":       "pkg/cachex/cachex.go.tmpl",
-		"pkg/zlogx/zlogx.go":         "pkg/zlogx/zlogx.go.tmpl",
-		
-		"README.md":                  "README.md.tmpl",
+		"pkg/versionx/version.go":  "pkg/versionx/versionx.go.tmpl",
+		"pkg/rmqx/rmqx.go":         "pkg/rmqx/rmqx.go.tmpl",
+		"pkg/redisx/redisx.go":     "pkg/redisx/redisx.go.tmpl",
+		"pkg/parsex/parsex.go":     "pkg/parsex/parsex.go.tmpl",
+		"pkg/notifyx/notifyx.go":   "pkg/notifyx/notifyx.go.tmpl",
+		"pkg/leveldbx/leveldbx.go": "pkg/leveldbx/leveldbx.go.tmpl",
+		"pkg/errc/errc.go":         "pkg/errc/errc.go.tmpl",
+		"pkg/cronx/cronx.go":       "pkg/cronx/cronx.go.tmpl",
+		"pkg/cachex/cachex.go":     "pkg/cachex/cachex.go.tmpl",
+		"pkg/zlogx/zlogx.go":       "pkg/zlogx/zlogx.go.tmpl",
+
+		"README.md": "README.md.tmpl",
 	}
 
 	for filePath, templateName := range files {
