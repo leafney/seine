@@ -34,7 +34,7 @@ func (r *DefRouter) Init() error {
 }
 
 func (r *DefRouter) UseMiddlewares(app *fiber.App) {
-
+	app.Use(Cors())
 }
 
 func (r *DefRouter) SetupRoutes(app *fiber.App) {

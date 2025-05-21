@@ -8,12 +8,24 @@
 
 package cmd
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+)
 
 func NewMiddlewares() []*fiber.App {
 	return []*fiber.App{
 		//Middleware1,
 		//Middleware2,
 		//Middleware3,
+		//Cors(),
 	}
+}
+
+func Cors() fiber.Handler {
+	// cors
+	return cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowHeaders: "*",
+	})
 }

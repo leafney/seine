@@ -16,7 +16,12 @@ import (
 )
 
 var Set = wire.NewSet(
+	//
 	api.NewMemoApi,
 	biz.NewMemoBiz,
 	dao.NewMemoDao,
+
+	//wire.Struct(new(dao.MemoDao), "*"),
+	//wire.Struct(new(biz.MemoBiz), "*"),
+	//wire.Struct(new(api.MemoApi), "*"),
 )
