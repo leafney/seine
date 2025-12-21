@@ -20,3 +20,23 @@
 # Go workspace file
 go.work
 go.work.sum
+
+# Seine specific
+bin/
+tmp/
+logs/
+*.log
+data/
+wire/wire_gen.go
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

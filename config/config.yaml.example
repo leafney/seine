@@ -1,0 +1,41 @@
+# Seine Framework 配置文件
+
+server:
+  host: 0.0.0.0
+  port: 8080
+
+log:
+  # XLog 配置（轻量级日志）
+  xEnable: true
+  xDebug: false
+  xLevel: info
+  # Zap 配置（结构化日志）
+  zEnable: false
+  zLevel: info
+  zCaller: true
+
+database:
+  driver: sqlite  # mysql 或 sqlite
+  mysql:
+    dsn: root:password@tcp(localhost:3306)/seine?charset=utf8mb4&parseTime=True&loc=Local
+    idleOpen: 2
+    maxOpen: 10
+  sqlite:
+    dsn: data/seine.db
+  debug: true
+
+redis:
+  host: localhost:6379
+  db: 0
+  username: ""
+  password: ""
+
+cache:
+  minutes: 10  # 缓存过期时间（分钟）
+
+jwt:
+  signingKey: your-secret-key-change-in-production
+  accessTokenExpire: 86400  # 24小时（秒）
+
+crypto:
+  key: your-crypto-key-32bytes-change  # AES-256 密钥（32字节）
