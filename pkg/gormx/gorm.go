@@ -9,6 +9,10 @@
 package gormx
 
 import (
+	"database/sql"
+	"math/rand"
+	"time"
+
 	"github.com/leafney/seine/pkg/xlogx"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
@@ -18,6 +22,77 @@ import (
 
 type GormDBSvc struct {
 	*gorm.DB
+}
+
+const (
+	// gormConnectMaxAttempts 最大连接尝试次数（含首次尝试）；达到次数后仍失败则直接退出进程
+	gormConnectMaxAttempts = 10
+	// gormConnectInitialBackoff 首次失败后的初始等待时间（之后按指数退避翻倍）
+	gormConnectInitialBackoff = 1 * time.Second
+	// gormConnectMaxBackoff 指数退避等待的上限（避免等待无限增长）
+	gormConnectMaxBackoff = 30 * time.Second
+	// gormConnectJitterMax 每次等待叠加的随机抖动上限（避免多实例同时重连导致“惊群”）
+	gormConnectJitterMax = 100 * time.Millisecond
+)
+
+func openWithRetry(dialector gorm.Dialector, log *xlogx.XLogSvc, stop <-chan struct{}) (*gorm.DB, *sql.DB) {
+	backoff := gormConnectInitialBackoff
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	var lastErr error
+	for attempt := 1; attempt <= gormConnectMaxAttempts; attempt++ {
+		select {
+		case <-stop:
+			log.Fatalln("[Gorm] connect canceled")
+		default:
+		}
+
+		db, err := gorm.Open(dialector, &gorm.Config{})
+		if err == nil {
+			sqlDb, err := db.DB()
+			if err == nil {
+				if err := sqlDb.Ping(); err == nil {
+					return db, sqlDb
+				} else {
+					lastErr = err
+					_ = sqlDb.Close()
+				}
+			} else {
+				lastErr = err
+			}
+		} else {
+			lastErr = err
+		}
+
+		if attempt == gormConnectMaxAttempts {
+			log.Fatalf("[Gorm] connect failed after %d attempts [%v]", gormConnectMaxAttempts, lastErr)
+		}
+
+		sleep := backoff
+		if gormConnectJitterMax > 0 {
+			sleep += time.Duration(rng.Int63n(int64(gormConnectJitterMax) + 1))
+		}
+
+		log.Errorf("[Gorm] connect attempt %d/%d failed [%v], retrying in %s", attempt, gormConnectMaxAttempts, lastErr, sleep)
+
+		timer := time.NewTimer(sleep)
+		select {
+		case <-stop:
+			if !timer.Stop() {
+				<-timer.C
+			}
+			log.Fatalln("[Gorm] connect canceled")
+		case <-timer.C:
+		}
+
+		backoff *= 2
+		if backoff > gormConnectMaxBackoff {
+			backoff = gormConnectMaxBackoff
+		}
+	}
+
+	log.Fatalf("[Gorm] connect failed [%v]", lastErr)
+	return nil, nil
 }
 
 // NewGormDBSvc 创建 GORM 数据库服务
@@ -38,29 +113,10 @@ func NewGormDBSvc(driver string, dsn string, debug bool, log *xlogx.XLogSvc, sto
 		log.Fatalf("[Gorm] Unsupported database driver: %s", driver)
 	}
 
-	db, err := gorm.Open(dialector, &gorm.Config{})
-	if err != nil {
-		log.Fatalf("[Gorm] connect error [%v]", err)
-	}
-
-	sqlDb, err := db.DB()
-	if err != nil {
-		log.Fatalf("[Gorm] Get sql.DB error [%v]", err)
-	}
-
-	// 一些默认配置项
-	//sqlDb.SetMaxOpenConns()
-
-	if err := sqlDb.Ping(); err != nil {
-		log.Fatalf("[Gorm] Ping error [%v]", err)
-	}
+	db, sqlDb := openWithRetry(dialector, log, stop)
 
 	go func() {
 		<-stop
-		sqlDb, err := db.DB()
-		if err != nil {
-			log.Fatalf("[Gorm] Get sql.DB error [%v]", err)
-		}
 		if err := sqlDb.Close(); err != nil {
 			log.Fatalf("[Gorm] Closed error [%v]", err)
 		} else {
